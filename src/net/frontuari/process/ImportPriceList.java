@@ -29,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.logging.Level;
 
+import org.compiere.model.MBPartner;
 import org.compiere.model.MPriceList;
 import org.compiere.model.MPriceListVersion;
 import org.compiere.model.MProductPrice;
@@ -325,11 +326,19 @@ public class ImportPriceList extends SvrProcess
 				if (newPriceList)			//	Insert new Price List
 				{
 					pricelist = new MPriceList(imp);
-					if (pricelist.save())
+					if (pricelist.save(get_TrxName()))
 					{
 						M_PriceList_ID = pricelist.getM_PriceList_ID();
 						log.finer("Insert Price List");
 						noInsertpl++;
+						String bpsql="select  c_bpartner_id from C_BPartner where  value=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)"
+									+ "' or taxid=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)";
+						int bpId= DB.getSQLValue(get_TrxName(), bpsql);
+						if(bpId>0){
+							MBPartner bp = new MBPartner(getCtx(),bpId,get_TrxName());
+							bp.setPO_PriceList_ID(M_PriceList_ID);
+							bp.saveEx(get_TrxName());
+						}
 					}
 					else
 					{
