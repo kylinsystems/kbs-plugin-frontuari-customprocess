@@ -326,18 +326,26 @@ public class ImportPriceList extends SvrProcess
 				if (newPriceList)			//	Insert new Price List
 				{
 					pricelist = new MPriceList(imp);
+					pricelist.set_ValueOfColumn("IsValidateBPPriceList", "N");
 					if (pricelist.save(get_TrxName()))
 					{
 						M_PriceList_ID = pricelist.getM_PriceList_ID();
 						log.finer("Insert Price List");
 						noInsertpl++;
-						String bpsql="select  c_bpartner_id from C_BPartner where  value=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)"
-									+ "' or taxid=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)";
+						
+						// search business partner from origin price list to set a new price list
+						String bpsql="select bp.c_bpartner_id from M_Pricelist pl inner join C_BPartner bp on pl.M_Pricelist_ID=bp.po_pricelist_ID"
+								+ " where pl.name = substring('"+pricelist.getName()+"',0,length('"+pricelist.getName()+"')-3) ";
+								
+								/*"select  c_bpartner_id from C_BPartner where  value=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)"
+									+ "' or taxid=substring('"+pricelist.getName()+"',5,length('"+pricelist.getName()+"')-8)";*/
 						int bpId= DB.getSQLValue(get_TrxName(), bpsql);
 						if(bpId>0){
 							MBPartner bp = new MBPartner(getCtx(),bpId,get_TrxName());
-							bp.setPO_PriceList_ID(M_PriceList_ID);
+							bp.set_ValueOfColumn("PO_USDPriceList_ID",M_PriceList_ID);//PO_USDPriceList_ID
 							bp.saveEx(get_TrxName());
+						}else{
+							//return "No se encontro el proveedor para la siguiente lista de precio:"+pricelist.getName();
 						}
 					}
 					else
