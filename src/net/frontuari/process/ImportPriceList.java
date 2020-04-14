@@ -288,6 +288,8 @@ public class ImportPriceList extends SvrProcess
 		int noUpdateppvb = 0;
 		int noInsertpl = 0;
 		int noInsertplv = 0;
+		String nameInsertpl = "";
+		String nameInsertplv = "";
 
 		//	Go through Records
 		log.fine("start inserting/updating ...");
@@ -332,7 +334,7 @@ public class ImportPriceList extends SvrProcess
 						M_PriceList_ID = pricelist.getM_PriceList_ID();
 						log.finer("Insert Price List");
 						noInsertpl++;
-						
+						nameInsertpl +=pricelist.getName()+" - ";
 						// search business partner from origin price list to set a new price list
 						String bpsql="select bp.c_bpartner_id from M_Pricelist pl inner join C_BPartner bp on pl.M_Pricelist_ID=bp.po_pricelist_ID"
 								+ " where pl.name = substring('"+pricelist.getName()+"',0,length('"+pricelist.getName()+"')-3) ";
@@ -385,6 +387,7 @@ public class ImportPriceList extends SvrProcess
 						M_PriceList_Version_ID = pricelistversion.getM_PriceList_Version_ID();
 						log.finer("Insert Price List Version");
 						noInsertplv++;
+						nameInsertplv += pricelistversion.getName()+" - ";
 					}
 					else
 					{
@@ -502,7 +505,9 @@ public class ImportPriceList extends SvrProcess
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
 		addLog (0, null, new BigDecimal (no), "@Errors@");
 		addLog (0, null, new BigDecimal (noInsertpl), "@M_PriceList_ID@: @Inserted@");
+		addLog (0, null, null, "Listas de Precio Creadas:"+nameInsertpl);
 		addLog (0, null, new BigDecimal (noInsertplv), "@M_PriceList_Version_ID@: @Inserted@");
+		addLog (0, null, null, "Versiones de Listas de Precio Creadas:"+nameInsertplv);
 		addLog (0, null, new BigDecimal (noInsertpp), "Product Price: @Inserted@");
 		addLog (0, null, new BigDecimal (noUpdatepp), "Product Price: @Updated@");
 		addLog (0, null, new BigDecimal (noInsertppvb), "@M_ProductPriceVendorBreak_ID@: @Inserted@");
