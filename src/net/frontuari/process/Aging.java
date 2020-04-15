@@ -144,6 +144,7 @@ public class Aging extends SvrProcess
 		.append(", bsca_getonlydocumentno(318,oi.C_Invoice_ID) ,oi.dateinvoiced ");	//	18..19
 		sql.append(",oi.SalesRep_ID ");	//	20
 		sql.append(",oi.C_PaymentTerm_ID, oi.C_DocType_ID, oi.DateAcct ");	//	21..23
+		sql.append(",(SELECT )");	//	24..25
 		if (!p_DateAcct)//FR 1933937
 		{
 			sql.append(" FROM FTU_RV_OpenItem oi");
@@ -152,7 +153,7 @@ public class Aging extends SvrProcess
 		{
 			sql.append(" FROM FTU_RV_OpenItemToDate oi");
 		}
-		
+		//sql.append(" INNER JOIN FTU_ConversionRate bp ON oi.C_BPartner_ID=bp.C_BPartner_ID ");
 		sql.append(" INNER JOIN C_BPartner bp ON (oi.C_BPartner_ID=bp.C_BPartner_ID) "
 			+ "WHERE oi.ISSoTrx=").append(p_IsSOTrx ? "'Y'" : "'N'");
 		if (p_C_BPartner_ID > 0)
@@ -207,6 +208,7 @@ public class Aging extends SvrProcess
 				boolean IsSOTrx = "Y".equals(rs.getString(6));
 				//
 				Timestamp DateInvoiced = rs.getTimestamp(7);
+				
 				//int NetDays = rs.getInt(8);
 				Timestamp DueDate = rs.getTimestamp(9);
 				//	Days Due
