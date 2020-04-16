@@ -17,6 +17,7 @@
 package net.frontuari.process;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -229,6 +230,8 @@ public class Aging extends SvrProcess
 				int C_PaymentTerm_ID = rs.getInt(21);
 				int C_DocType_ID = rs.getInt(22);
 				Timestamp DateAcct = rs.getTimestamp(23);
+				BigDecimal rate1 = getRate("Multiplier", DateInvoiced);
+				BigDecimal rate2 = getRate("MultiplyRate", DateInvoiced);
 				rows++;
 				//	New Aging Row
 				if (aging == null 		//	Key
@@ -252,6 +255,9 @@ public class Aging extends SvrProcess
 					aging.setC_Project_ID(C_Project_ID);
 					aging.setDateAcct(p_DateAcct);
 					aging.set_CustomColumn("SalesRep_ID", SalesRep_ID);
+					//	Add Conversion Amt
+					aging.set_ValueOfColumn("FieldAmt1",OpenAmt.divide(rate1).setScale(2, RoundingMode.HALF_UP));
+					aging.set_ValueOfColumn("FieldAmt2",OpenAmt.divide(rate2).setScale(2, RoundingMode.HALF_UP));
 					if(p_IsListInvoices){
 						aging.set_CustomColumn("DocumentNo", documentno);
 						aging.set_CustomColumn("DateInvoiced", DateInvoiced);
@@ -287,4 +293,16 @@ public class Aging extends SvrProcess
 		return "";
 	}	//	doIt
 
+	public BigDecimal getRate(String column, Timestamp dateRate)
+	{
+		BigDecimal rate;
+		
+		rate = DB.getSQLValueBD(get_TrxName(), "SELECT "+column+" FROM FTU_ConversionRate WHERE IsActive = 'Y' AND AD_Client_ID = ? AND ValidFrom <= ? ORDER BY ValidFrom DESC", new Object[]{getAD_Client_ID(),dateRate});
+		
+		if(rate == null)
+			rate = BigDecimal.ZERO;
+		
+		return rate;
+	}
+	
 }	//	Aging
