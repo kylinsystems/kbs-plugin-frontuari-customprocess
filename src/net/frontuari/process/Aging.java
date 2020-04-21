@@ -148,7 +148,6 @@ public class Aging extends SvrProcess
 		.append(", bsca_getonlydocumentno(318,oi.C_Invoice_ID) ,oi.dateinvoiced ");	//	18..19
 		sql.append(",oi.SalesRep_ID ");	//	20
 		sql.append(",oi.C_PaymentTerm_ID, oi.C_DocType_ID, oi.DateAcct ");	//	21..23
-		sql.append("");	//	24..25
 		if (!p_DateAcct)//FR 1933937
 		{
 			sql.append(" FROM FTU_RV_OpenItem oi");
@@ -233,19 +232,9 @@ public class Aging extends SvrProcess
 				int C_PaymentTerm_ID = rs.getInt(21);
 				int C_DocType_ID = rs.getInt(22);
 				Timestamp DateAcct = rs.getTimestamp(23);
-				BigDecimal rate1 = BigDecimal.ZERO;
 				
-				BigDecimal rate2 = BigDecimal.ZERO;
-				
-				
-				if(p_IsListInvoices){
-					rate1 = getRate("Multiplier", DateInvoiced,p_C_Currency_To_ID);
-					rate2 = getRate("MultiplyRate", DateInvoiced,p_C_Currency_To_ID);
-				}else{
-					rate1 = getRate("Multiplier", p_StatementDate,p_C_Currency_To_ID);
-					rate2 = getRate("MultiplyRate", p_StatementDate,p_C_Currency_To_ID);
-				}
-				
+				BigDecimal rate1 = getRate("Multiplier", (p_IsListInvoices ? DateInvoiced : p_StatementDate),p_C_Currency_To_ID);
+				BigDecimal rate2 = getRate("MultiplyRate", (p_IsListInvoices ? DateInvoiced : p_StatementDate),p_C_Currency_To_ID);
 				rows++;
 				//	New Aging Row
 				if (aging == null 		//	Key
