@@ -145,7 +145,6 @@ public class Aging extends SvrProcess
 		.append(", bsca_getonlydocumentno(318,oi.C_Invoice_ID) ,oi.dateinvoiced ");	//	18..19
 		sql.append(",oi.SalesRep_ID ");	//	20
 		sql.append(",oi.C_PaymentTerm_ID, oi.C_DocType_ID, oi.DateAcct ");	//	21..23
-		sql.append(",(SELECT )");	//	24..25
 		if (!p_DateAcct)//FR 1933937
 		{
 			sql.append(" FROM FTU_RV_OpenItem oi");
@@ -230,8 +229,8 @@ public class Aging extends SvrProcess
 				int C_PaymentTerm_ID = rs.getInt(21);
 				int C_DocType_ID = rs.getInt(22);
 				Timestamp DateAcct = rs.getTimestamp(23);
-				BigDecimal rate1 = getRate("Multiplier", DateInvoiced);
-				BigDecimal rate2 = getRate("MultiplyRate", DateInvoiced);
+				BigDecimal rate1 = getRate("Multiplier", (p_IsListInvoices ? DateInvoiced : p_StatementDate));
+				BigDecimal rate2 = getRate("MultiplyRate", (p_IsListInvoices ? DateInvoiced : p_StatementDate));
 				rows++;
 				//	New Aging Row
 				if (aging == null 		//	Key
@@ -256,8 +255,14 @@ public class Aging extends SvrProcess
 					aging.setDateAcct(p_DateAcct);
 					aging.set_CustomColumn("SalesRep_ID", SalesRep_ID);
 					//	Add Conversion Amt
-					aging.set_ValueOfColumn("FieldAmt1",OpenAmt.divide(rate1).setScale(2, RoundingMode.HALF_UP));
-					aging.set_ValueOfColumn("FieldAmt2",OpenAmt.divide(rate2).setScale(2, RoundingMode.HALF_UP));
+					if(rate1.signum() == 0 )
+						aging.set_ValueOfColumn("FieldAmt1",rate1);
+					else
+						aging.set_ValueOfColumn("FieldAmt1",OpenAmt.divide(rate1,2, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP));
+					if(rate2.signum() == 0 )
+						aging.set_ValueOfColumn("FieldAmt2",rate2);
+					else
+						aging.set_ValueOfColumn("FieldAmt2",OpenAmt.divide(rate2,2, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP));
 					if(p_IsListInvoices){
 						aging.set_CustomColumn("DocumentNo", documentno);
 						aging.set_CustomColumn("DateInvoiced", DateInvoiced);
