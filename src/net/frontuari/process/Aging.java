@@ -50,6 +50,7 @@ public class Aging extends SvrProcess
 	private boolean		p_DateAcct = false;
 	private boolean 	p_IsSOTrx = false;
 	private int			p_C_Currency_ID = 0;
+	private int			p_C_Currency_To_ID = 0;
 	private int			p_AD_Org_ID = 0;
 	private int			p_C_BP_Group_ID = 0;
 	private int			p_C_BPartner_ID = 0;
@@ -74,9 +75,11 @@ public class Aging extends SvrProcess
 			else if (name.equals("DateAcct"))
 				p_DateAcct = "Y".equals(para[i].getParameter());
 			else if (name.equals("IsSOTrx"))
-				p_IsSOTrx = "Y".equals(para[i].getParameter());
+				p_IsSOTrx = "Y".equals(para[i].getParameter()); 
 			else if (name.equals("C_Currency_ID"))
 				p_C_Currency_ID = ((BigDecimal)para[i].getParameter()).intValue();
+			else if (name.equals("C_Currency_To_ID"))  
+				p_C_Currency_To_ID = ((BigDecimal)para[i].getParameter()).intValue();
 			else if (name.equals("AD_Org_ID"))
 				p_AD_Org_ID = ((BigDecimal)para[i].getParameter()).intValue();
 			else if (name.equals("C_BP_Group_ID"))
@@ -145,7 +148,7 @@ public class Aging extends SvrProcess
 		.append(", bsca_getonlydocumentno(318,oi.C_Invoice_ID) ,oi.dateinvoiced ");	//	18..19
 		sql.append(",oi.SalesRep_ID ");	//	20
 		sql.append(",oi.C_PaymentTerm_ID, oi.C_DocType_ID, oi.DateAcct ");	//	21..23
-		sql.append(",(SELECT )");	//	24..25
+		sql.append("");	//	24..25
 		if (!p_DateAcct)//FR 1933937
 		{
 			sql.append(" FROM FTU_RV_OpenItem oi");
@@ -230,8 +233,19 @@ public class Aging extends SvrProcess
 				int C_PaymentTerm_ID = rs.getInt(21);
 				int C_DocType_ID = rs.getInt(22);
 				Timestamp DateAcct = rs.getTimestamp(23);
-				BigDecimal rate1 = getRate("Multiplier", DateInvoiced);
-				BigDecimal rate2 = getRate("MultiplyRate", DateInvoiced);
+				BigDecimal rate1 = BigDecimal.ZERO;
+				
+				BigDecimal rate2 = BigDecimal.ZERO;
+				
+				
+				if(p_IsListInvoices){
+					rate1 = getRate("Multiplier", DateInvoiced,p_C_Currency_To_ID);
+					rate2 = getRate("MultiplyRate", DateInvoiced,p_C_Currency_To_ID);
+				}else{
+					rate1 = getRate("Multiplier", p_StatementDate,p_C_Currency_To_ID);
+					rate2 = getRate("MultiplyRate", p_StatementDate,p_C_Currency_To_ID);
+				}
+				
 				rows++;
 				//	New Aging Row
 				if (aging == null 		//	Key
@@ -255,14 +269,22 @@ public class Aging extends SvrProcess
 					aging.setC_Project_ID(C_Project_ID);
 					aging.setDateAcct(p_DateAcct);
 					aging.set_CustomColumn("SalesRep_ID", SalesRep_ID);
-					//	Add Conversion Amt
-					aging.set_ValueOfColumn("FieldAmt1",OpenAmt.divide(rate1).setScale(2, RoundingMode.HALF_UP));
-					aging.set_ValueOfColumn("FieldAmt2",OpenAmt.divide(rate2).setScale(2, RoundingMode.HALF_UP));
 					if(p_IsListInvoices){
 						aging.set_CustomColumn("DocumentNo", documentno);
 						aging.set_CustomColumn("DateInvoiced", DateInvoiced);
 						aging.set_CustomColumn("C_PaymentTerm_ID", C_PaymentTerm_ID);
 						aging.set_CustomColumn("C_DocType_ID", C_DocType_ID);
+
+						//	Add Conversion Amt
+						if(rate1.compareTo(BigDecimal.ZERO)>0)
+							aging.set_ValueOfColumn("FieldAmt1",OpenAmt.divide(rate1,2, RoundingMode.HALF_UP));
+						else
+							aging.set_ValueOfColumn("FieldAmt1",BigDecimal.ZERO);
+							
+						if(rate2.compareTo(BigDecimal.ZERO)>0)
+							aging.set_ValueOfColumn("FieldAmt2",OpenAmt.divide(rate2,2, RoundingMode.HALF_UP));
+						else
+							aging.set_ValueOfColumn("FieldAmt2",BigDecimal.ZERO);
 					}
 					else{
 						aging.set_CustomColumn("DocumentNo", "-");
@@ -271,6 +293,18 @@ public class Aging extends SvrProcess
 				}
 				//	Fill Buckets
 				aging.add (DueDate, DaysDue, GrandTotal, OpenAmt);
+				if(!p_IsListInvoices){
+//					Add Conversion Amt
+
+					if(rate1.compareTo(BigDecimal.ZERO)>0)
+					aging.set_ValueOfColumn("FieldAmt1",aging.getOpenAmt().divide(rate1,2, RoundingMode.HALF_UP));
+					else
+						aging.set_ValueOfColumn("FieldAmt1",BigDecimal.ZERO);
+					if(rate2.compareTo(BigDecimal.ZERO)>0)
+					aging.set_ValueOfColumn("FieldAmt2",aging.getOpenAmt().divide(rate2,2, RoundingMode.HALF_UP));
+					else
+						aging.set_ValueOfColumn("FieldAmt2",BigDecimal.ZERO);
+				}
 			}
 			if (aging != null)
 			{
@@ -293,11 +327,11 @@ public class Aging extends SvrProcess
 		return "";
 	}	//	doIt
 
-	public BigDecimal getRate(String column, Timestamp dateRate)
+	public BigDecimal getRate(String column, Timestamp dateRate, int currencyTo)
 	{
 		BigDecimal rate;
 		
-		rate = DB.getSQLValueBD(get_TrxName(), "SELECT "+column+" FROM FTU_ConversionRate WHERE IsActive = 'Y' AND AD_Client_ID = ? AND ValidFrom <= ? ORDER BY ValidFrom DESC", new Object[]{getAD_Client_ID(),dateRate});
+		rate = DB.getSQLValueBD(get_TrxName(), "SELECT "+column+" FROM FTU_ConversionRate WHERE IsActive = 'Y' AND AD_Client_ID = ? AND ValidFrom <= ? AND C_Currency_ID_TO = "+currencyTo+" ORDER BY ValidFrom DESC", new Object[]{getAD_Client_ID(),dateRate});
 		
 		if(rate == null)
 			rate = BigDecimal.ZERO;
