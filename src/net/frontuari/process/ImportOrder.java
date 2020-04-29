@@ -200,7 +200,7 @@ public class ImportOrder extends SvrProcess
 		//	Price List
 		sql = new StringBuilder ("UPDATE I_FTUOrder o ")
 			  .append("SET M_PriceList_ID=(SELECT MAX(M_PriceList_ID) FROM M_PriceList p WHERE p.IsDefault='Y'")
-			  .append(" AND p.C_Currency_ID=o.C_Currency_ID AND p.IsSOPriceList=o.IsSOTrx AND o.AD_Client_ID=p.AD_Client_ID) ")
+			  .append(" AND p.C_Currency_ID=o.C_Currency_ID AND p.IsSOPriceList=o.IsSOTrx AND o.AD_Client_ID=p.AD_Client_ID AND p.AD_Org_ID=o.AD_Org_ID) ")
 			  .append("WHERE M_PriceList_ID IS NULL AND I_IsImported<>'Y'").append (clientCheck);
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
 		if (log.isLoggable(Level.FINE)) log.fine("Set Default Currency PriceList=" + no);
@@ -554,6 +554,11 @@ public class ImportOrder extends SvrProcess
 					bp.setClientOrg (imp.getAD_Client_ID (), imp.getAD_Org_ID ());
 					bp.setValue (imp.getBPartnerValue ());
 					bp.setName (imp.getName ());
+					if(imp.isSOTrx()){
+						bp.setIsCustomer(true);
+					}else{
+						bp.setIsVendor(true);
+					}
 					if (!bp.save ())
 						continue;
 				}
@@ -826,8 +831,8 @@ public class ImportOrder extends SvrProcess
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
 		addLog (0, null, new BigDecimal (no), "@Errors@");
 		//
-		addLog (0, null, new BigDecimal (noInsert), "@C_Order_ID@: @Inserted@");
-		addLog (0, null, new BigDecimal (noInsertLine), "@C_OrderLine_ID@: @Inserted@");
+		addLog (0, null, new BigDecimal (noInsert), "ff @C_Order_ID@: @Inserted@");
+		addLog (0, null, new BigDecimal (noInsertLine), "gg @C_OrderLine_ID@: @Inserted@");
 		StringBuilder msgreturn = new StringBuilder("#").append(noInsert).append("/").append(noInsertLine);
 		return msgreturn.toString();
 	}	//	doIt

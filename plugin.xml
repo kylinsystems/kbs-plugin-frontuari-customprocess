@@ -10,5 +10,14 @@
             priority="0">
       </process>
    </extension>
+   <extension
+         id="net.frontuari.process.ImportOrder"
+         name="net.frontuari.process.ImportOrder"
+         point="org.adempiere.base.Process">
+      <process
+            class="net.frontuari.process.ImportOrder"
+            priority="0">
+      </process>
+   </extension>
 
 </plugin>

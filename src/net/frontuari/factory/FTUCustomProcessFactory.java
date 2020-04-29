@@ -3,6 +3,7 @@ package net.frontuari.factory;
 import net.frontuari.process.Aging;
 import net.frontuari.process.ImportOrder;
 import net.frontuari.process.EnableBPartnerToTrx;
+import net.frontuari.process.ImportPayment;
 import net.frontuari.process.ImportPriceList;
 
 import org.adempiere.base.IProcessFactory;
@@ -18,6 +19,8 @@ public class FTUCustomProcessFactory implements IProcessFactory {
 			return new ImportPriceList();
 		else if(className.equalsIgnoreCase(ImportOrder.class.getName())) 
 			return new ImportOrder();
+		else if(className.equalsIgnoreCase(ImportPayment.class.getName())) 
+			return new ImportPayment();
 		else if(className.equalsIgnoreCase(EnableBPartnerToTrx.class.getName())) 
 			return new EnableBPartnerToTrx();
 		return null;
