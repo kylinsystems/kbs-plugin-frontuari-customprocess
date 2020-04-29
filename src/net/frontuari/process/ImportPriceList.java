@@ -286,6 +286,23 @@ public class ImportPriceList extends SvrProcess
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
 		if (no != 0)
 			log.warning("No Mandatory BreakValue=" + no);
+		
+		//	Set Conversion Type
+		sql = new StringBuilder ("UPDATE I_PriceList ")
+			.append("SET C_ConversionType_ID=(SELECT MAX(C_ConversionType_ID) FROM C_ConversionType ct")
+			.append(" WHERE I_PriceList.ConversionTypeValue=ct.Value AND ct.AD_Client_ID IN (0,I_PriceList.AD_Client_ID)) ")
+			.append("WHERE C_ConversionType_ID IS NULL")
+			.append(" AND I_IsImported<>'Y'").append(clientCheck);
+		no = DB.executeUpdate(sql.toString(), get_TrxName());
+		if (log.isLoggable(Level.INFO)) log.info("doIt- Set Conversion Type=" + no);
+		//
+		sql = new StringBuilder ("UPDATE I_PriceList ")
+			.append("SET I_IsImported='E', I_ErrorMsg=I_ErrorMsg||'ERR=Conversion Type,' ")
+			.append("WHERE C_ConversionType_ID IS NULL AND ConversionTypeValue IS NOT NULL")
+			.append(" AND I_IsImported<>'Y'").append(clientCheck);
+		no = DB.executeUpdate(sql.toString(), get_TrxName());
+		if (no != 0)
+			log.warning("Invalid Conversion Type=" + no);
 
 		commitEx();
 		
@@ -337,6 +354,10 @@ public class ImportPriceList extends SvrProcess
 				{
 					pricelist = new MPriceList(imp);
 					pricelist.set_ValueOfColumn("IsValidateBPPriceList", "N");
+					//	Added by Jorge Colmenarez 2020-04-29 15:18 
+					if(imp.get_ValueAsInt("C_ConversionType_ID")>0)
+						pricelist.set_ValueOfColumn("C_ConversionType_ID", imp.get_ValueAsInt("C_ConversionType_ID"));
+					//	End Jorge Colmenarez
 					if (pricelist.save(get_TrxName()))
 					{
 						M_PriceList_ID = pricelist.getM_PriceList_ID();
@@ -369,6 +390,10 @@ public class ImportPriceList extends SvrProcess
 				} else {
 					// NOTE no else clause - if the price list already exists it's not updated
 					pricelist = new MPriceList(getCtx(), M_PriceList_ID, get_TrxName());
+					//	Added by Jorge Colmenarez 2020-04-29 15:18 
+					if(imp.get_ValueAsInt("C_ConversionType_ID")>0)
+						pricelist.set_ValueOfColumn("C_ConversionType_ID", imp.get_ValueAsInt("C_ConversionType_ID"));
+					//	End Jorge Colmenarez
 					int bpId= imp.get_ValueAsInt("Vendor_ID");// DB.getSQLValue(get_TrxName(), bpsql);
 					if(bpId>0){
 						MBPartner bp = new MBPartner(getCtx(),bpId,get_TrxName());
