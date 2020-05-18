@@ -49,6 +49,11 @@ public class ImportOrder extends SvrProcess
 	private int				m_AD_Client_ID = 0;
 	/**	Organization to be imported to		*/
 	private int				m_AD_Org_ID = 0;
+	
+	/** Doctype to order  **/
+	private int             m_C_DocType_ID = 0;
+	/** User to sales representand **/
+	private int             m_AD_User_ID = 0;
 	/**	Delete old Imported				*/
 	private boolean			m_deleteOldImported = false;
 	/**	Document Action					*/
@@ -75,6 +80,10 @@ public class ImportOrder extends SvrProcess
 				m_deleteOldImported = "Y".equals(para[i].getParameter());
 			else if (name.equals("DocAction"))
 				m_docAction = (String)para[i].getParameter();
+			else if (name.equals("C_DocType_ID"))
+				m_C_DocType_ID = para[i].getParameterAsInt();
+			else if (name.equals("AD_User_ID"))
+				m_AD_User_ID = para[i].getParameterAsInt();
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + name);
 		}
@@ -129,6 +138,13 @@ public class ImportOrder extends SvrProcess
 		if (no != 0)
 			log.warning ("Invalid Org=" + no);
 
+		// set doctype to all orders
+		if(m_C_DocType_ID>0){
+		sql = new StringBuilder ("UPDATE I_FTUOrder o ")	
+		  .append("SET C_DocType_ID="+m_C_DocType_ID)
+		  .append("WHERE I_IsImported<>'Y'").append (clientCheck);//C_DocType_ID IS NULL AND
+		  no = DB.executeUpdate(sql.toString(), get_TrxName());
+		}
 		//	Document Type - PO - SO
 		sql = new StringBuilder ("UPDATE I_FTUOrder o ")	//	PO Document Type Name
 			  .append("SET C_DocType_ID=(SELECT C_DocType_ID FROM C_DocType d WHERE d.Name=o.DocTypeName")
@@ -270,7 +286,7 @@ public class ImportOrder extends SvrProcess
 
 		//	Warehouse
 		sql = new StringBuilder ("UPDATE I_FTUOrder o ")
-			  .append("SET M_Warehouse_ID=(SELECT MAX(M_Warehouse_ID) FROM M_Warehouse w")
+			  .append("SET M_Warehouse_ID=(SELECT MIN(M_Warehouse_ID) FROM M_Warehouse w")
 			  .append(" WHERE o.AD_Client_ID=w.AD_Client_ID AND o.AD_Org_ID=w.AD_Org_ID) ")
 			  .append("WHERE M_Warehouse_ID IS NULL AND I_IsImported<>'Y'").append (clientCheck);
 		no = DB.executeUpdate(sql.toString(), get_TrxName());	//	Warehouse for Org
@@ -314,7 +330,7 @@ public class ImportOrder extends SvrProcess
 		//	BP from Value
 		sql = new StringBuilder ("UPDATE I_FTUOrder o ")
 			  .append("SET C_BPartner_ID=(SELECT MAX(C_BPartner_ID) FROM C_BPartner bp")
-			  .append(" WHERE o.BPartnerValue=bp.Value AND o.AD_Client_ID=bp.AD_Client_ID) ")
+			  .append(" WHERE (o.BPartnerValue=bp.Value OR o.BPartnerValue=bp.TaxId) AND o.AD_Client_ID=bp.AD_Client_ID) ")
 			  .append("WHERE C_BPartner_ID IS NULL AND BPartnerValue IS NOT NULL")
 			  .append(" AND I_IsImported<>'Y'").append (clientCheck);
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
@@ -494,9 +510,17 @@ public class ImportOrder extends SvrProcess
 		if (no != 0)
 			log.warning ("Invalid Tax=" + no);
 		
+		// set sales rep  to all orders
+		if(m_AD_User_ID>0){
+		sql = new StringBuilder ("UPDATE I_FTUOrder o ")	
+		  .append("SET AD_User_ID="+m_AD_User_ID+", SalesRep_ID="+m_AD_User_ID)
+		  .append("WHERE I_IsImported<>'Y'").append (clientCheck);//C_DocType_ID IS NULL AND
+		  no = DB.executeUpdate(sql.toString(), get_TrxName());
+		}
 		
-		/*
-		//adding support to create direct payments for e-commerce orders
+		
+		/*SalesRep_ID
+		//adding support to create direct ces for e-commerce orders
 		sql = new StringBuilder ("UPDATE I_FTUOrder o ")
 		  .append("SET C_BankAccount_ID=(SELECT MAX(C_BankAccount_ID) FROM C_BankAccount t")
 		  .append(" WHERE o.AccountNo=t.AccountNo AND o.AD_Client_ID=t.AD_Client_ID) ")
@@ -527,6 +551,7 @@ public class ImportOrder extends SvrProcess
 		{
 			pstmt = DB.prepareStatement (sql.toString(), get_TrxName());
 			rs = pstmt.executeQuery ();
+			String oldBPValue = null;
 			while (rs.next ())
 			{
 				X_I_FTUOrder imp = new X_I_FTUOrder (getCtx (), rs, get_TrxName());
@@ -548,18 +573,26 @@ public class ImportOrder extends SvrProcess
 				}
 				//	BPartner
 				MBPartner bp = MBPartner.get (getCtx(), imp.getBPartnerValue());
+				
+				String bPValue = imp.getBPartnerValue();
 				if (bp == null)
 				{
 					bp = new MBPartner (getCtx (), -1, get_TrxName());
 					bp.setClientOrg (imp.getAD_Client_ID (), imp.getAD_Org_ID ());
 					bp.setValue (imp.getBPartnerValue ());
+					bp.setTaxID (imp.getBPartnerValue ());
+					//if(imp.getBPartnerValue ().substring(0, 1).equalsIgnoreCase("V")){
+						bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000001);
+					//}else if(imp.getBPartnerValue ().substring(0, 1).equalsIgnoreCase("J")){
+					//	bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000001);
+					//}
 					bp.setName (imp.getName ());
 					if(imp.isSOTrx()){
 						bp.setIsCustomer(true);
 					}else{
 						bp.setIsVendor(true);
 					}
-					if (!bp.save ())
+					if (!bp.save(get_TrxName()))
 						continue;
 				}
 				imp.setC_BPartner_ID (bp.getC_BPartner_ID ());
@@ -595,12 +628,12 @@ public class ImportOrder extends SvrProcess
 					if (imp.getC_Region_ID () != 0)
 						loc.setC_Region_ID (imp.getC_Region_ID ());
 					loc.setC_Country_ID (imp.getC_Country_ID ());
-					if (!loc.save ())
+					if (!loc.save(get_TrxName()))
 						continue;
 					//
 					bpl = new MBPartnerLocation (bp);
 					bpl.setC_Location_ID (loc.getC_Location_ID ());
-					if (!bpl.save ())
+					if (!bpl.save(get_TrxName()))
 						continue;
 				}
 				imp.setC_Location_ID (bpl.getC_Location_ID ());
@@ -608,7 +641,7 @@ public class ImportOrder extends SvrProcess
 				imp.setC_BPartner_Location_ID (bpl.getC_BPartner_Location_ID ());
 				
 				//	User/Contact
-				if (imp.getContactName () != null 
+				/*if (imp.getContactName () != null 
 					|| imp.getEMail () != null 
 					|| imp.getPhone () != null)
 				{
@@ -633,11 +666,11 @@ public class ImportOrder extends SvrProcess
 							user.setName (imp.getContactName ());
 						user.setEMail (imp.getEMail ());
 						user.setPhone (imp.getPhone ());
-						if (user.save ())
+						if (user.save(get_TrxName()))
 							imp.setAD_User_ID (user.getAD_User_ID ());
 					}
-				}
-				imp.save ();
+				}*/
+				imp.save(get_TrxName());
 			}	//	for all new BPartners
 			//
 		}
@@ -705,7 +738,7 @@ public class ImportOrder extends SvrProcess
 								
 							}
 						}
-						order.saveEx();
+						order.saveEx(get_TrxName());
 					}
 					oldC_BPartner_ID = imp.getC_BPartner_ID();
 					oldC_BPartner_Location_ID = imp.getC_BPartner_Location_ID();
@@ -735,6 +768,10 @@ public class ImportOrder extends SvrProcess
 					if (imp.getDescription() != null)
 						order.setDescription(imp.getDescription());
 					order.setC_PaymentTerm_ID(imp.getC_PaymentTerm_ID());
+					// changed by adonis castellanos 
+					order.setPaymentRule("P");
+					
+					// end adonis
 					order.setM_PriceList_ID(imp.getM_PriceList_ID());
 					order.setM_Warehouse_ID(imp.getM_Warehouse_ID());
 					if (imp.getM_Shipper_ID() != 0)
@@ -763,7 +800,7 @@ public class ImportOrder extends SvrProcess
 					if (imp.getC_OrderSource() != null)
 						order.setC_OrderSource_ID(imp.getC_OrderSource_ID());
 					//
-					order.saveEx();
+					order.saveEx(get_TrxName());
 					noInsert++;
 					lineNo = 10;
 				}
@@ -791,12 +828,12 @@ public class ImportOrder extends SvrProcess
 					line.setFreightAmt(imp.getFreightAmt());
 				if (imp.getLineDescription() != null)
 					line.setDescription(imp.getLineDescription());
-				line.saveEx();
+				line.saveEx(get_TrxName());
 				imp.setC_OrderLine_ID(line.getC_OrderLine_ID());
 				imp.setI_IsImported(true);
 				imp.setProcessed(true);
 				//
-				if (imp.save())
+				if (imp.save(get_TrxName()))
 					noInsertLine++;
 			}
 			if (order != null)
@@ -810,7 +847,7 @@ public class ImportOrder extends SvrProcess
 						
 					}
 				}
-				order.saveEx();
+				order.saveEx(get_TrxName());
 			}
 		}
 		catch (Exception e)
@@ -831,8 +868,8 @@ public class ImportOrder extends SvrProcess
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
 		addLog (0, null, new BigDecimal (no), "@Errors@");
 		//
-		addLog (0, null, new BigDecimal (noInsert), "ff @C_Order_ID@: @Inserted@");
-		addLog (0, null, new BigDecimal (noInsertLine), "gg @C_OrderLine_ID@: @Inserted@");
+		addLog (0, null, new BigDecimal (noInsert), "@C_Order_ID@: @Inserted@");
+		addLog (0, null, new BigDecimal (noInsertLine), "@C_OrderLine_ID@: @Inserted@");
 		StringBuilder msgreturn = new StringBuilder("#").append(noInsert).append("/").append(noInsertLine);
 		return msgreturn.toString();
 	}	//	doIt
