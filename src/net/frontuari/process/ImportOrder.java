@@ -29,7 +29,9 @@ import org.compiere.model.MLocation;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MUser;
+
 import net.frontuari.model.X_I_FTUOrder;
+
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.DB;
@@ -97,6 +99,7 @@ public class ImportOrder extends SvrProcess
 	 *  @return Message
 	 *  @throws Exception
 	 */
+	@SuppressWarnings("unused")
 	protected String doIt() throws java.lang.Exception
 	{
 		StringBuilder sql = null;
@@ -573,10 +576,13 @@ public class ImportOrder extends SvrProcess
 				}
 				//	BPartner
 				MBPartner bp = MBPartner.get (getCtx(), imp.getBPartnerValue());
+				 
+				MBPartner oldNewBp = null;
+				MBPartnerLocation oldBpLocation = null;
 				
-				String bPValue = imp.getBPartnerValue();
 				if (bp == null)
 				{
+					if(oldNewBp == null ){
 					bp = new MBPartner (getCtx (), -1, get_TrxName());
 					bp.setClientOrg (imp.getAD_Client_ID (), imp.getAD_Org_ID ());
 					bp.setValue (imp.getBPartnerValue ());
@@ -594,7 +600,14 @@ public class ImportOrder extends SvrProcess
 					}
 					if (!bp.save(get_TrxName()))
 						continue;
+					}
+					else if(oldNewBp.getValue().equalsIgnoreCase(imp.getBPartnerValue())){
+						bp=oldNewBp;
+					}
+					
 				}
+				
+				oldNewBp = bp;
 				imp.setC_BPartner_ID (bp.getC_BPartner_ID ());
 				
 				//	BP Location
@@ -618,24 +631,30 @@ public class ImportOrder extends SvrProcess
 					}
 				}
 				if (bpl == null)
-				{
-					//	New Location
-					MLocation loc = new MLocation (getCtx (), 0, get_TrxName());
-					loc.setAddress1 (imp.getAddress1 ());
-					loc.setAddress2 (imp.getAddress2 ());
-					loc.setCity (imp.getCity ());
-					loc.setPostal (imp.getPostal ());
-					if (imp.getC_Region_ID () != 0)
-						loc.setC_Region_ID (imp.getC_Region_ID ());
-					loc.setC_Country_ID (imp.getC_Country_ID ());
-					if (!loc.save(get_TrxName()))
-						continue;
-					//
-					bpl = new MBPartnerLocation (bp);
-					bpl.setC_Location_ID (loc.getC_Location_ID ());
-					if (!bpl.save(get_TrxName()))
-						continue;
+				{	
+					if(oldBpLocation==null){
+//						New Location
+						MLocation loc = new MLocation (getCtx (), 0, get_TrxName());
+						loc.setAddress1 (imp.getAddress1 ());
+						loc.setAddress2 (imp.getAddress2 ());
+						loc.setCity (imp.getCity ());
+						loc.setPostal (imp.getPostal ());
+						if (imp.getC_Region_ID () != 0)
+							loc.setC_Region_ID (imp.getC_Region_ID ());
+						loc.setC_Country_ID (imp.getC_Country_ID ());
+						if (!loc.save(get_TrxName()))
+							continue;
+						//
+						bpl = new MBPartnerLocation (bp);
+						bpl.setC_Location_ID (loc.getC_Location_ID ());
+						if (!bpl.save(get_TrxName()))
+							continue;
+					}else if(oldBpLocation.getC_Location().getAddress1().equalsIgnoreCase(imp.getAddress1())){
+						bpl = oldBpLocation;
+					}
+					
 				}
+				oldBpLocation = bpl;
 				imp.setC_Location_ID (bpl.getC_Location_ID ());
 				imp.setBillTo_ID (bpl.getC_BPartner_Location_ID ());
 				imp.setC_BPartner_Location_ID (bpl.getC_BPartner_Location_ID ());
