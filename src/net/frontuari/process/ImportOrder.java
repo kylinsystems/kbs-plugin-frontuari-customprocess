@@ -555,6 +555,8 @@ public class ImportOrder extends SvrProcess
 			pstmt = DB.prepareStatement (sql.toString(), get_TrxName());
 			rs = pstmt.executeQuery ();
 			String oldBPValue = null;
+			MBPartner oldNewBp = null;
+			MBPartnerLocation oldBpLocation = null;
 			while (rs.next ())
 			{
 				X_I_FTUOrder imp = new X_I_FTUOrder (getCtx (), rs, get_TrxName());
@@ -577,18 +579,28 @@ public class ImportOrder extends SvrProcess
 				//	BPartner
 				MBPartner bp = MBPartner.get (getCtx(), imp.getBPartnerValue());
 				 
-				MBPartner oldNewBp = null;
-				MBPartnerLocation oldBpLocation = null;
 				
 				if (bp == null)
 				{
 					if(oldNewBp == null ){
 					bp = new MBPartner (getCtx (), -1, get_TrxName());
 					bp.setClientOrg (imp.getAD_Client_ID (), imp.getAD_Org_ID ());
-					bp.setValue (imp.getBPartnerValue ());
-					bp.setTaxID (imp.getBPartnerValue ());
-					//if(imp.getBPartnerValue ().substring(0, 1).equalsIgnoreCase("V")){
+					String bpValue =imp.getBPartnerValue ();
+					bpValue = bpValue.replace("-", "");
+					bp.setValue (bpValue);
+					if(bpValue.length()==9){
 						bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000001);
+						bp.setTaxID (bpValue);
+					}else if (bpValue.length()==10){
+						bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000000);
+						bp.setTaxID (bpValue);
+					}else if(bpValue.length()==8){
+						bpValue = "V"+bpValue;
+						bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000001);
+						bp.setTaxID (bpValue);
+					}
+					//if(imp.getBPartnerValue ().substring(0, 1).equalsIgnoreCase("V")){
+						
 					//}else if(imp.getBPartnerValue ().substring(0, 1).equalsIgnoreCase("J")){
 					//	bp.set_ValueOfColumn("LCO_TaxIdType_ID", 1000001);
 					//}
