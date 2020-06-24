@@ -156,9 +156,13 @@ public class Aging extends SvrProcess
 		sql.append(",oi.SalesRep_ID ");	//	20
 		sql.append(",oi.C_PaymentTerm_ID, oi.C_DocType_ID, oi.DateAcct"); //	21..23
 		if(p_IsListInvoices && p_C_ConversionType_ID>0)
-			sql.append(", COALESCE(currencyrate("+p_C_Currency_To_ID+",oi.C_Currency_ID,oi.DateAcct,"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),0) as rate");	//24
+			sql.append(", COALESCE(currencyrate("+p_C_Currency_To_ID+",oi.C_Currency_ID,oi.DateAcct,"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),"
+					+ "currencyrate(oi.C_Currency_ID,"+p_C_Currency_To_ID+",oi.DateAcct,"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),1) as rate");	//24
 		else if(p_C_ConversionType_ID>0) 
-			sql.append(", COALESCE(currencyrate("+p_C_Currency_To_ID+",oi.C_Currency_ID,'"+p_StatementDate+"',"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),0) as rate");	//24
+			sql.append(", COALESCE(currencyrate("+p_C_Currency_To_ID+",oi.C_Currency_ID,'"+p_StatementDate+"',"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),"
+					+ "currencyrate(oi.C_Currency_ID,"+p_C_Currency_To_ID+",oi.DateAcct,"+p_C_ConversionType_ID+",oi.AD_Client_ID,oi.AD_Org_ID),1) as rate");	//24
+		else 
+			sql.append("0 as rate");//24
 		sql.append(",COALESCE(bp.po_usdpricelist_id,0) ");	//	25
 		if (!p_DateAcct)//FR 1933937
 		{

@@ -1,6 +1,7 @@
 package net.frontuari.factory;
 
 import net.frontuari.process.Aging;
+import net.frontuari.process.CreateInventoryMovements;
 import net.frontuari.process.ImportOrder;
 import net.frontuari.process.EnableBPartnerToTrx;
 import net.frontuari.process.ImportPayment;
@@ -26,6 +27,8 @@ public class FTUCustomProcessFactory implements IProcessFactory {
 			return new EnableBPartnerToTrx();
 		else if(className.equalsIgnoreCase(ImportProducts.class.getName())) 
 			return new ImportProducts();
+		else if(className.equalsIgnoreCase(CreateInventoryMovements.class.getName())) 
+			return new CreateInventoryMovements();
 		return null;
 	}
 

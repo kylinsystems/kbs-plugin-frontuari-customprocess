@@ -2,6 +2,7 @@ package net.frontuari.factory;
 
 import java.sql.ResultSet;
 
+import net.frontuari.model.X_FTU_MovementSales;
 import net.frontuari.model.X_I_FTUOrder;
 import net.frontuari.model.X_I_FTUProduct;
 
@@ -24,6 +25,8 @@ public class FTU_ModelFactory implements IModelFactory {
 			return new X_I_FTUOrder(Env.getCtx(),Record_ID, trxName);
 		else if(tableName.equalsIgnoreCase(X_I_FTUProduct.Table_Name)) 
 			return new X_I_FTUProduct(Env.getCtx(),Record_ID, trxName);		
+		else if(tableName.equalsIgnoreCase(X_FTU_MovementSales.Table_Name)) 
+			return new X_FTU_MovementSales(Env.getCtx(),Record_ID, trxName);		
 		return null;
 	}
 
@@ -33,6 +36,8 @@ public class FTU_ModelFactory implements IModelFactory {
 			return new X_I_FTUOrder(Env.getCtx(),rs, trxName);
 		else if(tableName.equalsIgnoreCase(X_I_FTUProduct.Table_Name)) 
 			return new X_I_FTUProduct(Env.getCtx(),rs, trxName);
+		else if(tableName.equalsIgnoreCase(X_FTU_MovementSales.Table_Name)) 
+			return new X_FTU_MovementSales(Env.getCtx(),rs, trxName);
 		return null;
 	}
 

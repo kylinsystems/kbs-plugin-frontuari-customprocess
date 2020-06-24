@@ -24,7 +24,9 @@ import java.util.logging.Level;
 
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MPayment;
+
 import net.frontuari.model.X_I_FTUPayment;
+
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
@@ -51,6 +53,10 @@ public class ImportPayment extends SvrProcess
 	/**	Document Action					*/
 	private String			m_docAction = null;
 
+	/**	Document Action					*/
+	private String			p_orderDocumentNo = null;
+
+
 	/** Properties						*/
 	private Properties 		m_ctx;
 
@@ -71,6 +77,8 @@ public class ImportPayment extends SvrProcess
 				p_deleteOldImported = "Y".equals(para[i].getParameter());
 			else if (name.equals("DocAction"))
 				m_docAction = (String)para[i].getParameter();
+			else if (name.equals("c_order_documentno"))
+				p_orderDocumentNo = (String)para[i].getParameter();
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + name);
 		}
@@ -82,6 +90,7 @@ public class ImportPayment extends SvrProcess
 	 *	@return info
 	 *	@throws Exception
 	 */
+	@SuppressWarnings("resource")
 	protected String doIt() throws Exception
 	{
 		if (log.isLoggable(Level.INFO)) log.info("C_BankAccount_ID" + p_C_BankAccount_ID);
@@ -95,7 +104,7 @@ public class ImportPayment extends SvrProcess
 		StringBuilder sql = null;
 		int no = 0;
 		StringBuilder clientCheck = new StringBuilder(" AND AD_Client_ID=").append(ba.getAD_Client_ID());
-
+		System.out.println("gg");
 		//	****	Prepare	****
 
 		//	Delete Old Imported
@@ -298,7 +307,7 @@ public class ImportPayment extends SvrProcess
 		//	BPartner
 		sql = new StringBuilder ("UPDATE I_FTUPayment i ")
 			  .append("SET C_BPartner_ID=(SELECT MAX(C_BPartner_ID) FROM C_BPartner bp")
-			  .append(" WHERE i.BPartnerValue=bp.Value AND i.AD_Client_ID=bp.AD_Client_ID) ")
+			  .append(" WHERE (i.BPartnerValue=bp.Value OR i.BPartnerValue=bp.TaxID) AND i.AD_Client_ID=bp.AD_Client_ID) ")
 			  .append("WHERE C_BPartner_ID IS NULL AND BPartnerValue IS NOT NULL")
 			  .append(" AND I_IsImported<>'Y'").append (clientCheck);
 		no = DB.executeUpdate(sql.toString(), get_TrxName());
@@ -436,11 +445,14 @@ public class ImportPayment extends SvrProcess
 
 		commitEx();
 		
+		String whereclause = "";
+		if(p_orderDocumentNo!= null || !p_orderDocumentNo.equals("") || p_orderDocumentNo.length()>0)
+			whereclause= "AND c_order_documentno='"+p_orderDocumentNo+"'";
 		//Import Bank Statement
 		sql = new StringBuilder("SELECT * FROM I_FTUPayment")
-			.append(" WHERE I_IsImported='N'")
+			.append(" WHERE I_IsImported='N' "+whereclause)
 			.append(" ORDER BY C_BankAccount_ID, CheckNo, DateTrx, R_AuthCode");
-			
+		
 		MBankAccount account = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -543,7 +555,6 @@ public class ImportPayment extends SvrProcess
 						if(!payment.processIt (m_docAction)) {
 							log.warning("Payment Process Failed: " + payment + " - " + payment.getProcessMsg());
 							throw new IllegalStateException("Payment Process Failed: " + payment + " - " + payment.getProcessMsg());
-							
 						}
 						payment.saveEx();
 					}
